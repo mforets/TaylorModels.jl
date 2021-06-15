@@ -120,7 +120,7 @@ end
 #     for its = 1:10
 #         # Remainder of Picard iteration
 #         Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
-# 
+#
 #         # If contraction doesn't hold, return old bound
 #         iscontractive(Δ, Δx) || return Δxold
 #
@@ -325,7 +325,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
         nsteps::Int, orderT::Int, abstol::T, params, parse_eqs::Bool,
-        adaptive::Bool, minabstol::T, absorb::Bool, 
+        adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::Function=(t, x)->true) where {N,T}
 
     # One step integration (non-validated)
@@ -587,8 +587,8 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
         # Validated step of the integration
         (_success, δt, red_abstol) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
                                 t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
-                                nsteps, orderT, red_abstol, params, 
-                                parse_eqs, adaptive, minabstol, 
+                                nsteps, orderT, red_abstol, params,
+                                parse_eqs, adaptive, minabstol,
                                 absorb, check_property)
         δtI = sign_tstep * Interval(zt, sign_tstep*δt)
 
@@ -744,7 +744,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                         # E = remainder(x0)
                     end
                 else
-                    @warn("Minimum absolute tolerance reached: ", t[0], E′, E, 
+                    @warn("Minimum absolute tolerance reached: ", t[0], E′, E,
                     _success, all(iscontractive.(E′, E)), reduced_abstol)
                 end
             else
@@ -759,7 +759,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     end
 
     if !all(iscontractive.(E′, E))
-        @warn("Maximum number of validate steps reached.", t[0], E′, E, 
+        @warn("Maximum number of validate steps reached.", t[0], E′, E,
             _success, all(iscontractive.(E′, E)))
         return (_success, δt, reduced_abstol)
     end
@@ -787,8 +787,8 @@ end
 
 function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
                          abstol::T, params=nothing;
-                         parse_eqs=true, maxsteps::Int=2000, 
-                         absorb::Bool=false, 
+                         parse_eqs=true, maxsteps::Int=2000,
+                         absorb::Bool=false,
                          adaptive::Bool=true, minabstol=T(_DEF_MINABSTOL),
                          validatesteps::Int=30, ε::T=1e-10, δ::T=1e-6,
                          absorb_steps::Int=3) where {T <: Real}
@@ -800,7 +800,7 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     zB = zero_box(N, T)
     S = symmetric_box(N, T)
     t = t0 + Taylor1(orderT)
-    
+
     tv = Array{T}(undef, maxsteps+1)
     xv = Array{IntervalBox{N,T}}(undef, maxsteps+1)
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
@@ -832,7 +832,6 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
 
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
     red_abstol = abstol
-    setformat(:full)
 
     while t0 * sign_tstep < tf * sign_tstep
         δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
@@ -842,9 +841,9 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         δt = sign_tstep * δt
 
         # Reuse previous TaylorModel1 to save some allocations
-        (_success, δt, red_abstol) = _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t, 
-                                            S, dof, rem, red_abstol, δt, sign_tstep, E, E′, 
-                                            polv, low_ratiov, hi_ratiov, 
+        (_success, δt, red_abstol) = _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t,
+                                            S, dof, rem, red_abstol, δt, sign_tstep, E, E′,
+                                            polv, low_ratiov, hi_ratiov,
                                             adaptive, minabstol,
                                             ε=ε, δ=δ,
                                             validatesteps=validatesteps)
@@ -855,11 +854,11 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         @inbounds tv[nsteps] = t0
         t0 += δt
         @inbounds t[0] = t0
-        
+
         # Flowpipe
         @. begin
             rem = remainder(xTM1)
-            xTMN = fp_rpa(TaylorModelN(copy(evaluate(xTM1, domt)), rem, (zB,), (S,)))
+            xTMN = fp_rpa(TaylorModelN(copy(evaluate(xTM1, domt)), zI, (zB,), (S,)))
         end
         xv[nsteps] = evaluate(xTMN, S)
 
@@ -867,8 +866,7 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         @inbounds for i in eachindex(x)
             aux_pol = evaluate(xTM1[i], δt) #δtI
             # rem[i] = remainder(xTM1[i])
-            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), rem[i], zB, S))
-            # xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zB, S))
+            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), zI, zB, S))
 
             # Absorb remainder
             j = 0
